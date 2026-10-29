@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>फसल डॉक्टर – पौधे की बीमारी पहचानें</title>
+<style>
+  :root{
+    --green:#2e7d32; --green-d:#1b5e20; --green-l:#e8f5e9; --amber:#f9a825;
+    --red:#c62828; --ink:#1f2a1f; --muted:#5f6f5f; --card:#ffffff; --bg:#f4f8f1; --line:#dbe7d6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Devanagari","Noto Sans Gujarati",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  header{background:linear-gradient(135deg,var(--green-d),var(--green));color:#fff;padding:18px 16px 22px}
+  .wrap{max-width:760px;margin:0 auto;padding:0 14px}
+  header .wrap{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  h1{margin:0;font-size:1.5rem}
+  header p{margin:2px 0 0;opacity:.9;font-size:.95rem}
+  .lang{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:8px 10px;font-size:1rem}
+  .lang option{color:#000}
+  main{padding:16px 0 40px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .drop{border:2px dashed var(--green);border-radius:14px;background:var(--green-l);text-align:center;padding:22px 12px}
+  .drop.over{background:#d7ecd8}
+  .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+  button.big,label.big{background:var(--green);color:#fff;border:0;border-radius:12px;padding:13px 20px;font-size:1.05rem;font-weight:600;cursor:pointer;display:inline-block}
+  button.big:hover,label.big:hover{background:var(--green-d)}
+  button.big.alt,label.big.alt{background:#fff;color:var(--green-d);border:2px solid var(--green)}
+  button.big:disabled{opacity:.5;cursor:not-allowed}
+  input[type=file]{display:none}
+  #preview{max-width:100%;max-height:340px;border-radius:12px;display:none;margin:0 auto 6px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  input[type=text],select.crop{flex:1;min-width:160px;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:1rem}
+  .loading{display:none;text-align:center;padding:26px}
+  .spin{width:42px;height:42px;border:5px solid var(--green-l);border-top-color:var(--green);border-radius:50%;margin:0 auto 10px;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .badge{display:inline-block;border-radius:20px;padding:3px 12px;font-size:.85rem;font-weight:700;color:#fff}
+  .sev-low{background:var(--green)} .sev-medium{background:#ef8f00} .sev-high{background:var(--red)}
+  .healthy{background:var(--green-l);border-color:#a5d6a7}
+  h2{margin:0 0 6px;font-size:1.3rem}
+  h3{margin:14px 0 6px;font-size:1.05rem;color:var(--green-d)}
+  ul{margin:4px 0 0;padding-left:20px} li{margin:4px 0}
+  .meta{color:var(--muted);font-size:.92rem}
+  .warn{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;font-size:.9rem;margin-top:12px}
+  .err{background:#ffebee;border:1px solid #ef9a9a;border-radius:10px;padding:12px;color:#7f0000;display:none}
+  .bar{height:8px;background:#e0e0e0;border-radius:6px;overflow:hidden;margin-top:4px}
+  .bar>i{display:block;height:100%;background:var(--green)}
+  footer{text-align:center;color:var(--muted);font-size:.82rem;padding:0 14px 26px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div>
+      <h1>🌿 <span data-t="title">फसल डॉक्टर</span></h1>
+      <p data-t="sub">बीमार पौधे की फोटो डालिए, बीमारी और इलाज जानिए</p>
+    </div>
+    <select class="lang" id="lang" aria-label="Language">
+      <option value="hi">हिंदी</option>
+      <option value="en">English</option>
+      <option value="gu">ગુજરાતી</option>
+    </select>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="card">
+    <div class="drop" id="drop">
+      <img id="preview" alt="plant">
+      <div id="dropText" style="font-size:1.05rem" data-t="dropText">📷 पौधे की साफ़ फोटो लीजिए। जिस पत्ते/फल पर बीमारी दिख रही हो, उसे पास से खींचिए।</div>
+      <div class="btns">
+        <label class="big" for="cam">📸 <span data-t="camera">फोटो खींचिए</span></label>
+        <label class="big alt" for="gal">🖼️ <span data-t="gallery">गैलरी से चुनिए</span></label>
+      </div>
+      <input type="file" id="cam" accept="image/*" capture="environment">
+      <input type="file" id="gal" accept="image/*">
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <input type="text" id="crop" data-ph="cropPh" placeholder="फसल का नाम (ऐच्छिक), जैसे: टमाटर, कपास, गन्ना">
+    </div>
+    <div class="btns">
+      <button class="big" id="go" disabled>🔍 <span data-t="analyze">बीमारी पहचानिए</span></button>
+    </div>
+  </div>
+
+  <div class="card loading" id="loading">
+    <div class="spin"></div>
+    <div data-t="loading">फोटो जाँची जा रही है… कृपया रुकिए</div>
+  </div>
+
+  <div class="err" id="err"></div>
+  <div id="result"></div>
+</main>
+
+
+<script>
+const T = {
+  hi:{title:"फसल डॉक्टर",sub:"बीमार पौधे की फोटो डालिए, बीमारी और इलाज जानिए",
+    dropText:"📷 पौधे की साफ़ फोटो लीजिए। जिस पत्ते/फल पर बीमारी दिख रही हो, उसे पास से खींचिए।",
+    camera:"फोटो खींचिए",gallery:"गैलरी से चुनिए",analyze:"बीमारी पहचानिए",cropPh:"फसल का नाम (ऐच्छिक), जैसे: टमाटर, कपास, गन्ना",
+    loading:"फोटो जाँची जा रही है… कृपया रुकिए",
+    foot:"यह AI की सलाह है, पक्का निदान नहीं। दवा छिड़कने से पहले अपने कृषि विज्ञान केंद्र (KVK) या कृषि अधिकारी से पुष्टि कर लें। दवा के लेबल पर लिखी मात्रा ही रखें।",
+    plant:"पौधा",conf:"भरोसा",sev:{low:"हल्की",medium:"मध्यम",high:"गंभीर"},sevL:"गंभीरता",
+    symptoms:"लक्षण",cause:"कारण",organic:"🌱 देसी / जैविक इलाज",chemical:"🧪 दवा से इलाज",prevent:"आगे से बचाव",expert:"⚠️ कब विशेषज्ञ को दिखाएँ",
+    healthyT:"✅ पौधा स्वस्थ दिख रहा है",notPlant:"इस फोटो में पौधा साफ़ नहीं दिख रहा। कृपया पत्ते की पास से और रोशनी में फोटो लें।",
+    errGeneric:"कुछ गड़बड़ हो गई। कृपया दोबारा कोशिश करें।",errImg:"सर्वर से जवाब नहीं मिला। थोड़ी देर बाद फिर कोशिश करें।",errRate:"अभी बहुत अनुरोध हैं, थोड़ी देर बाद कोशिश करें।",langName:"Hindi (हिंदी, simple words a farmer understands)"},
+  en:{title:"Fasal Doctor",sub:"Upload a photo of a sick plant to find the disease and its treatment",
+    dropText:"📷 Take a clear photo. Get close to the leaf or fruit that shows the problem.",
+    camera:"Take photo",gallery:"Choose from gallery",analyze:"Identify disease",cropPh:"Crop name (optional), e.g. tomato, cotton, sugarcane",
+    loading:"Checking your photo… please wait",
+    foot:"This is AI guidance, not a confirmed diagnosis. Confirm with your local Krishi Vigyan Kendra (KVK) or agriculture officer before spraying. Follow the dose on the product label.",
+    plant:"Plant",conf:"Confidence",sev:{low:"Mild",medium:"Moderate",high:"Severe"},sevL:"Severity",
+    symptoms:"Symptoms",cause:"Cause",organic:"🌱 Organic / home remedies",chemical:"🧪 Chemical treatment",prevent:"Prevention",expert:"⚠️ When to see an expert",
+    healthyT:"✅ The plant looks healthy",notPlant:"A plant isn't clearly visible. Please retake a close, well-lit photo of the affected leaf.",
+    errGeneric:"Something went wrong. Please try again.",errImg:"No response from the server. Please try again shortly.",errRate:"Too many requests right now, try again shortly.",langName:"English (simple words)"},
+  gu:{title:"ફસલ ડૉક્ટર",sub:"બીમાર છોડનો ફોટો નાખો, રોગ અને ઉપચાર જાણો",
+    dropText:"📷 છોડનો સ્પષ્ટ ફોટો લો. જે પાન/ફળ પર રોગ દેખાય તેને નજીકથી ખેંચો.",
+    camera:"ફોટો લો",gallery:"ગેલેરીમાંથી પસંદ કરો",analyze:"રોગ ઓળખો",cropPh:"પાકનું નામ (વૈકલ્પિક), જેમ કે: ટામેટા, કપાસ, શેરડી",
+    loading:"ફોટો તપાસાઈ રહ્યો છે… થોડી રાહ જુઓ",
+    foot:"આ AI ની સલાહ છે, પાકું નિદાન નથી. દવા છાંટતા પહેલાં તમારા કૃષિ વિજ્ઞાન કેન્દ્ર (KVK) અથવા કૃષિ અધિકારીની પુષ્ટિ કરી લો. દવાના લેબલ પર લખેલું પ્રમાણ જ વાપરો.",
+    plant:"છોડ",conf:"ભરોસો",sev:{low:"હળવો",medium:"મધ્યમ",high:"ગંભીર"},sevL:"ગંભીરતા",
+    symptoms:"લક્ષણો",cause:"કારણ",organic:"🌱 દેશી / જૈવિક ઉપચાર",chemical:"🧪 દવાથી ઉપચાર",prevent:"બચાવ",expert:"⚠️ ક્યારે નિષ્ણાતને બતાવવું",
+    healthyT:"✅ છોડ સ્વસ્થ લાગે છે",notPlant:"ફોટામાં છોડ સ્પષ્ટ દેખાતો નથી. કૃપા કરીને પાનનો નજીકથી, પ્રકાશમાં ફોટો લો.",
+    errGeneric:"કંઈક ખોટું થયું. ફરી પ્રયત્ન કરો.",errImg:"સર્વર તરફથી જવાબ મળ્યો નથી. થોડીવાર પછી ફરી પ્રયત્ન કરો.",errRate:"હમણાં ઘણી વિનંતીઓ છે, થોડીવાર પછી પ્રયત્ન કરો.",langName:"Gujarati (ગુજરાતી, simple words)"}
+};
+let lang = "hi", blob = null;
+try{ const s = localStorage.getItem("fd-lang"); if(s && T[s]) lang = s; }catch(e){}
+const $ = id => document.getElementById(id);
+
+function applyLang(){
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t[el.dataset.t]; });
+  document.querySelectorAll("[data-ph]").forEach(el => { el.placeholder = t[el.dataset.ph]; });
+  $("lang").value = lang;
+}
+$("lang").addEventListener("change", e => { lang = e.target.value; try{localStorage.setItem("fd-lang",lang)}catch(_){ } applyLang(); });
+applyLang();
+
+// Resize the photo so it uploads fast on a weak mobile network
+function shrink(file, max=1024){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      c.toBlob(b => { URL.revokeObjectURL(url); b ? res(b) : rej(new Error("blob")); }, "image/jpeg", 0.85);
+    };
+    img.onerror = () => rej(new Error("img"));
+    img.src = url;
+  });
+}
+async function setFile(f){
+  if(!f || !f.type.startsWith("image/")) return;
+  try{
+    blob = await shrink(f);
+    const p = $("preview"); p.src = URL.createObjectURL(blob); p.style.display = "block";
+    $("dropText").style.display = "none";
+    $("go").disabled = false; $("result").innerHTML = ""; $("err").style.display = "none";
+  }catch(e){ showErr(T[lang].errGeneric); }
+}
+$("cam").addEventListener("change", e => setFile(e.target.files[0]));
+$("gal").addEventListener("change", e => setFile(e.target.files[0]));
+const drop = $("drop");
+["dragover","dragenter"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => setFile(e.dataTransfer.files[0]));
+
+function showErr(m){ const e = $("err"); e.textContent = m; e.style.display = "block"; }
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const list = a => Array.isArray(a) && a.length ? "<ul>" + a.map(x => `<li>${esc(x)}</li>`).join("") + "</ul>" : "";
+
+function render(d){
+  const t = T[lang];
+  if(d.is_plant === false){ showErr(t.notPlant); return; }
+  const conf = Math.max(0, Math.min(100, +d.confidence || 0));
+  const sev = ["low","medium","high"].includes(d.severity) ? d.severity : "medium";
+  let h = "";
+  if(d.healthy){
+    h = `<div class="card healthy"><h2>${t.healthyT}</h2><div class="meta">${t.plant}: ${esc(d.plant)}</div>
+      ${d.prevention?.length ? `<h3>${t.prevent}</h3>${list(d.prevention)}`:""}</div>`;
+  }else{
+    h = `<div class="card">
+      <div class="meta">${t.plant}: <b>${esc(d.plant)}</b></div>
+      <h2>${esc(d.disease)}</h2>
+      <span class="badge sev-${sev}">${t.sevL}: ${t.sev[sev]}</span>
+      ${d.symptoms?.length ? `<h3>${t.symptoms}</h3>${list(d.symptoms)}`:""}
+      ${d.cause ? `<h3>${t.cause}</h3><div>${esc(d.cause)}</div>`:""}
+    </div>
+    <div class="card">
+      ${d.organic?.length ? `<h3 style="margin-top:0">${t.organic}</h3>${list(d.organic)}`:""}
+      ${d.chemical?.length ? `<h3>${t.chemical}</h3>${list(d.chemical)}`:""}
+      ${d.prevention?.length ? `<h3>${t.prevent}</h3>${list(d.prevention)}`:""}
+    </div>`;
+  }
+  $("result").innerHTML = h;
+  $("result").scrollIntoView({behavior:"smooth"});
+}
+
+$("go").addEventListener("click", async () => {
+  const t = T[lang];
+  $("err").style.display = "none"; $("result").innerHTML = "";
+  $("loading").style.display = "block"; $("go").disabled = true;
+  try{
+    const fd = new FormData();
+    fd.append("image", blob, "plant.jpg");
+    fd.append("crop", $("crop").value.trim());
+    fd.append("lang", lang);
+    const resp = await fetch("/api/analyze", {method:"POST", body:fd});
+    if(!resp.ok){
+      const j = await resp.json().catch(()=>({}));
+      throw {code: resp.status===429 ? "rate_limited" : "http", message: j.detail || ("HTTP " + resp.status)};
+    }
+    render(await resp.json());
+  }catch(e){
+    console.error(e);
+    const c = e && e.code;
+    let m = c==="rate_limited" ? t.errRate : (c==="not_granted"||c==="no_images"||c==="no_sample") ? t.errImg : t.errGeneric;
+        showErr(m);
+  }finally{
+    $("loading").style.display = "none"; $("go").disabled = false;
+  }
+});
+</script>
+</body>
+</html>
