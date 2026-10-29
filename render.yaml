@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: fasal-doctor
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # you paste the key in the Render dashboard
+      - key: RATE_LIMIT_PER_HOUR
+        value: "20"
